@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:login_app/provider/user_provider.dart';
 import 'package:login_app/screens/auth/join_screen.dart';
 import 'package:login_app/screens/auth/login_screen.dart';
 import 'package:login_app/screens/home_screen.dart';
@@ -6,9 +7,14 @@ import 'package:login_app/screens/mypage/profile_screen.dart';
 import 'package:login_app/screens/user/cart_screen.dart';
 import 'package:login_app/screens/user/product_screen.dart';
 import 'package:login_app/screens/user/search_screen.dart';
+import 'package:provider/provider.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(ChangeNotifierProvider(
+    create: (context) => UserProvider(),
+    child: const MyApp(),
+  ));
+  // runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -16,6 +22,9 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 앱 실행 시, 자동로그인
+    Provider.of<UserProvider>(context, listen: false).autoLogin();
+
     return MaterialApp(
       title: 'Login App',
       theme: ThemeData(

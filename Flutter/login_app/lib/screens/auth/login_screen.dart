@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:login_app/notifications/snackbar.dart';
+import 'package:login_app/provider/user_provider.dart';
 import 'package:login_app/widgets/custom_button.dart';
+import 'package:provider/provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -12,14 +16,36 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formkey = GlobalKey<FormState>();
 
   bool _isPasswordVisible = false; // 비밀번호 노출 여부
-  bool _rememberMe = false; // 자동 로그인
+  bool _rememberMe = false; // 자동 로그
   bool _rememberId = false; // 아이디 저장
 
   TextEditingController _usernameController = TextEditingController();
   TextEditingController _passwordController = TextEditingController();
 
+  // 안전한 저장소
+  final storage = const FlutterSecureStorage();
+  String? _username;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUsername(); // 저장된 아이디 가져오기
+  }
+
+  // 저장된 아이디 가져오기 (아이디 저장 했을 때)
+  void _loadUsername() async {
+    _username = await storage.read(key: 'username');
+    if (_username != null) {
+      _usernameController.text = _username!;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Provider 선언
+    UserProvider userProvider =
+        Provider.of<UserProvider>(context, listen: false);
+
     return Scaffold(
       resizeToAvoidBottomInset: false, // 키패드 overflow
       appBar: AppBar(
@@ -120,8 +146,38 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               CustomButton(
                   text: "로그인",
-                  onPressed: () {
-                    // TODO: 로그인 처리
+                  onPressed: () async {
+                    // 유효성 검사
+                    if (!_formkey.currentState!.validate()) {
+                      return;
+                    }
+
+                    final username = _usernameController.text;
+                    final password = _passwordController.text;
+
+                    await userProvider.login(username, password,
+                        rememberId: _rememberId, rememnerMe: _rememberMe);
+
+                    if (userProvider.isLogin) {
+                      print('로그인 성공');
+
+                      Snackbar(
+                        text: '로그인에 성공했습니다',
+                        icon: Icons.check_circle,
+                        backgroundcolor: Colors.green,
+                      ).showSnackbar(context);
+
+                      // 메인으로 이동
+                      Navigator.pop(context);
+                      Navigator.pushReplacementNamed(context, '/');
+                      return;
+                    }
+                    print('로그인 실패');
+                    Snackbar(
+                      text: '로그인에 실패했습니다.',
+                      icon: Icons.error,
+                      backgroundcolor: Colors.red,
+                    ).showSnackbar(context);
                   }),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,

@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:login_app/models/user.dart';
+import 'package:login_app/notifications/snackbar.dart';
+import 'package:login_app/provider/user_provider.dart';
+import 'package:login_app/screens/home_screen.dart';
+import 'package:login_app/services/user_service.dart';
 import 'package:login_app/widgets/common_bottom_navigation_bar.dart';
 import 'package:login_app/widgets/custom_button.dart';
 import 'package:login_app/widgets/custom_drawer.dart';
+import 'package:provider/provider.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -17,12 +23,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
   TextEditingController _nameController = TextEditingController();
   TextEditingController _emailController = TextEditingController();
 
-  String? _username;
-  String? _name;
-  String? _email;
+  User? _user;
+  UserService userService = UserService();
+
+  @override
+  void initState() {
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {
+    UserProvider userProvider =
+        Provider.of<UserProvider>(context, listen: true);
+
+    // 로그인 상태 확인
+    // - 로그인이 안되어 있으면,
+    if (!userProvider.isLogin) {
+      // -> 로그인 페이지로 리다이렉트
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        // 남아있는 스택이 있는지 확인
+        if (Navigator.canPop(context)) {
+          Navigator.pop(context);
+        }
+        Navigator.pushNamed(context, "/auth/login");
+      });
+
+      return const HomeScreen();
+    }
+
+    // 로그인 상태
+    String? _username = userProvider.userInfo.username ?? '없음';
+
+    // 사용자 정보 조회 요청
+    if (_user == null) {
+      userService.getUser(_username).then((value) {
+        setState(() {
+          _user = User.fromMap(value);
+        });
+        // 텍스트 폼 필드에 출력
+        _usernameController.text = _user?.username ?? _username;
+        _nameController.text = _user?.name ?? '';
+        _emailController.text = _user?.email ?? '';
+      });
+    }
     return Scaffold(
       appBar: AppBar(
         title: Text("마이페이지"),
@@ -53,9 +96,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   border: OutlineInputBorder(),
                 ),
                 onChanged: (value) {
-                  setState(() {
-                    _username = value;
-                  });
+                  // setState(() {
+                  //   _username = value;
+                  // });
                 },
               ),
               const SizedBox(
@@ -73,7 +116,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 onChanged: (value) {
                   setState(() {
-                    _name = value;
+                    _user!.name = value;
                   });
                 },
               ),
@@ -92,7 +135,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 onChanged: (value) {
                   setState(() {
-                    _email = value;
+                    _user!.email = value;
                   });
                 },
               ),
@@ -104,7 +147,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   isFullWidth: true,
                   backgroundColor: Colors.redAccent,
                   onPressed: () {
-                    // TODO : 회원 탈퇴 처리
+                    showDialog(
+                        context: context,
+                        builder: (BuildContext context) {
+                          return AlertDialog(
+                            title: Text("회원 탈퇴"),
+                            content: Text("정말로 탈퇴하시겠습니까?"),
+                            actions: <Widget>[
+                              TextButton(
+                                  onPressed: () {
+                                    Navigator.pop(context);
+                                  },
+                                  child: Text("취소")),
+                              TextButton(
+                                  onPressed: () {
+                                    Navigator.pop(context);
+                                    // 회원 탈퇴 요청
+                                    userService
+                                        .deleteUser(_username)
+                                        .then((value) {
+                                      if (value) {
+                                        // 회원 탈퇴 성공
+                                        // - 로그아웃 처리
+                                        userProvider.logout();
+                                        // - 홈 화면으로 이동
+                                        Navigator.pushReplacementNamed(
+                                            context, '/');
+                                      }
+                                    });
+                                  },
+                                  child: Text("확인")),
+                            ],
+                          );
+                        });
                   })
             ],
           ),
@@ -112,7 +187,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       bottomSheet: CustomButton(
         text: '회원 정보 수정',
-        onPressed: () {},
+        onPressed: () async {
+          if (_formkey.currentState!.validate()) {
+            // 회원정보 수정 요청
+            bool result = await userService.updateUser({
+              'username': _username,
+              'name': _user!.name,
+              'email': _user!.email
+            });
+            if (result) {
+              Snackbar(
+                      text: "회원정보 수정에 성공하였습니다.",
+                      icon: Icons.check_circle,
+                      backgroundcolor: Colors.green)
+                  .showSnackbar(context);
+
+              userProvider.userInfo = User(
+                  username: _username, name: _user!.name, email: _user!.email);
+            }
+          }
+        },
         isFullWidth: true,
       ),
       endDrawer: CustomDrawer(),

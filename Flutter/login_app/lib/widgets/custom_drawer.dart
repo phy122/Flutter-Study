@@ -1,19 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:login_app/notifications/snackbar.dart';
+import 'package:login_app/provider/user_provider.dart';
+import 'package:provider/provider.dart';
 
 class CustomDrawer extends StatelessWidget {
   const CustomDrawer({super.key});
 
   @override
   Widget build(BuildContext context) {
+    UserProvider userProvider =
+        Provider.of<UserProvider>(context, listen: true);
+
     return Drawer(
       child: Scaffold(
         body: ListView(
           padding: EdgeInsets.zero,
           children: [
             // Drawer 헤더
-            const DrawerHeader(
-                decoration: BoxDecoration(color: Colors.purpleAccent),
-                child: SizedBox.shrink()),
+            DrawerHeader(
+              decoration: BoxDecoration(color: Colors.purpleAccent),
+              child: userProvider.isLogin
+                  ? Text(userProvider.userInfo.name.toString())
+                  : SizedBox.shrink(),
+            ),
             _DrawerItem(
                 icon: Icons.home,
                 text: "홈",
@@ -53,37 +62,49 @@ class CustomDrawer extends StatelessWidget {
         ),
         bottomSheet: Container(
             color: Colors.purpleAccent,
-            child:
-                // _DrawerItem(
-                //     icon: Icons.logout,
-                //     text: "로그아웃",
-                //     color: Colors.white,
-                //     onTap: () {}),
+            child: userProvider.isLogin
+                ? _DrawerItem(
+                    icon: Icons.logout,
+                    text: "로그아웃",
+                    color: Colors.white,
+                    onTap: () {
+                      // 로그아웃 처리
+                      userProvider.logout();
+                      Navigator.pop(context);
+                      Navigator.pushReplacementNamed(context, '/');
+
+                      Snackbar(
+                              text: "로그아웃 되었습니다.",
+                              icon: Icons.check_circle,
+                              backgroundcolor: Colors.green)
+                          .showSnackbar(context);
+                    })
+                :
                 // 로그인, 회원가입
                 Row(
-              children: [
-                Expanded(
-                    child: TextButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          Navigator.pushNamed(context, '/auth/login');
-                        },
-                        child: Text(
-                          "로그인",
-                          style: TextStyle(color: Colors.white),
-                        ))),
-                Expanded(
-                    child: TextButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          Navigator.pushNamed(context, '/auth/join');
-                        },
-                        child: Text(
-                          "회원가입",
-                          style: TextStyle(color: Colors.white),
-                        ))),
-              ],
-            )),
+                    children: [
+                      Expanded(
+                          child: TextButton(
+                              onPressed: () {
+                                Navigator.pop(context);
+                                Navigator.pushNamed(context, '/auth/login');
+                              },
+                              child: Text(
+                                "로그인",
+                                style: TextStyle(color: Colors.white),
+                              ))),
+                      Expanded(
+                          child: TextButton(
+                              onPressed: () {
+                                Navigator.pop(context);
+                                Navigator.pushNamed(context, '/auth/join');
+                              },
+                              child: Text(
+                                "회원가입",
+                                style: TextStyle(color: Colors.white),
+                              ))),
+                    ],
+                  )),
       ),
     );
   }
